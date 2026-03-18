@@ -749,7 +749,11 @@
                 document.querySelector('.final-amount').style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
             }
 
-            updateCalcBarcode(usageCount, days);
+            if (billingType === 'pharmacy') {
+                updateCalcBarcode(usageCount, days);
+            } else {
+                document.getElementById('calc-barcode-area').style.display = 'none';
+            }
         }
 
         window.addEventListener('load', () => {
