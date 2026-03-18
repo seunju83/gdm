@@ -314,10 +314,18 @@
 
         /* 모바일: 세로 레이아웃 */
         @media (max-width: 700px) {
+            body {
+                height: auto;
+                overflow: auto;
+            }
+            .tab-content {
+                height: auto;
+                overflow-y: visible;
+            }
             #tab-calc.active {
                 flex-direction: column;
                 height: auto;
-                overflow-y: auto;
+                overflow-y: visible;
             }
             .barcode-grid {
                 grid-template-columns: 1fr;
