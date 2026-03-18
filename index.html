@@ -265,6 +265,22 @@
 
         .reset-btn:hover { background: #e2e8f0; }
 
+        .calc-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: box-shadow 0.2s, transform 0.1s;
+        }
+
+        .calc-btn:hover { box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4); }
+        .calc-btn:active { transform: scale(0.98); }
+
         /* 바코드 탭 */
         #tab-barcode { max-width: 700px; margin: 0 auto; }
 
@@ -401,6 +417,7 @@
                     </div>
                 </div>
             </div>
+            <button class="calc-btn" onclick="calculate()">계산하기</button>
         </div>
 
         <div class="col-right">
