@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>임신성 당뇨 소모성재료 본인부담금 계산기</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -252,6 +253,65 @@
 
         .reset-btn:hover { background: #e2e8f0; }
 
+        /* 바코드 탭 */
+        #tab-barcode { max-width: 700px; margin: 0 auto; }
+
+        .barcode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+
+        .barcode-item {
+            background: white;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .barcode-item:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        .barcode-item .barcode-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+
+        .barcode-item svg {
+            max-width: 100%;
+        }
+
+        .barcode-item .barcode-desc {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 6px;
+        }
+
+        .print-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .print-btn:hover {
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
         /* 모바일: 세로 레이아웃 */
         @media (max-width: 700px) {
             #tab-calc.active {
@@ -259,6 +319,18 @@
                 height: auto;
                 overflow-y: auto;
             }
+            .barcode-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media print {
+            body { background: white; height: auto; overflow: visible; }
+            .header, .tabs { display: none !important; }
+            .tab-content { display: none !important; }
+            #tab-barcode { display: block !important; height: auto; overflow: visible; padding: 10px; }
+            .barcode-item { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; }
+            .print-btn { display: none; }
         }
     </style>
 </head>
@@ -267,6 +339,7 @@
         <h1>임신성 당뇨 소모성재료 본인부담금 계산기</h1>
         <div class="tabs">
             <div class="tab active" onclick="switchTab('calc')">계산</div>
+            <div class="tab" onclick="switchTab('barcode')">바코드</div>
             <div class="tab" onclick="switchTab('settings')">설정</div>
         </div>
     </div>
@@ -366,6 +439,16 @@
         </div>
     </div>
 
+    <!-- 바코드 탭 -->
+    <div id="tab-barcode" class="tab-content">
+        <div class="card" style="margin-bottom:12px;">
+            <h3>자주 쓰는 처방 바코드</h3>
+            <div class="info-box">바코드를 클릭하면 해당 처방으로 계산 탭이 자동 입력됩니다.</div>
+        </div>
+        <div class="barcode-grid" id="barcode-grid"></div>
+        <button class="print-btn" onclick="window.print()">바코드 인쇄</button>
+    </div>
+
     <!-- 설정 탭 -->
     <div id="tab-settings" class="tab-content">
         <div class="card">
@@ -426,17 +509,23 @@
     <script>
         let billingType = 'pharmacy';
 
+        // 바코드 처방 데이터
+        const prescriptions = [
+            { label: '4회 14일', usage: 4, days: 14, code: 'GDM-4-14' },
+            { label: '4회 30일', usage: 4, days: 30, code: '46864049768' },
+            { label: '4회 60일', usage: 4, days: 60, code: '86464948454' },
+            { label: '6회 14일', usage: 6, days: 14, code: 'GDM-6-14' },
+            { label: '6회 30일', usage: 6, days: 30, code: 'GDM-6-30' },
+            { label: '6회 60일', usage: 6, days: 60, code: '6502463174' },
+        ];
+
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
 
-            if (tab === 'calc') {
-                document.querySelectorAll('.tab')[0].classList.add('active');
-                document.getElementById('tab-calc').classList.add('active');
-            } else {
-                document.querySelectorAll('.tab')[1].classList.add('active');
-                document.getElementById('tab-settings').classList.add('active');
-            }
+            const tabIndex = { calc: 0, barcode: 1, settings: 2 };
+            document.querySelectorAll('.tab')[tabIndex[tab]].classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
         }
 
         function setBillingType(type) {
@@ -466,6 +555,58 @@
             return num.toLocaleString('ko-KR');
         }
 
+        function applyPrescription(usage, days) {
+            document.getElementById('usage-count').value = usage;
+            document.getElementById('prescription-days').value = days;
+            document.getElementById('use-strip').checked = true;
+            document.getElementById('use-lancet').checked = true;
+            calculate();
+            switchTab('calc');
+        }
+
+        function generateBarcodes() {
+            const grid = document.getElementById('barcode-grid');
+            grid.innerHTML = '';
+
+            prescriptions.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'barcode-item';
+                item.onclick = () => applyPrescription(p.usage, p.days);
+
+                const label = document.createElement('div');
+                label.className = 'barcode-label';
+                label.textContent = '하루 ' + p.label;
+                item.appendChild(label);
+
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.id = 'barcode-' + p.usage + '-' + p.days;
+                item.appendChild(svg);
+
+                const desc = document.createElement('div');
+                desc.className = 'barcode-desc';
+                const stripQty = p.usage * p.days;
+                const lancetQty = p.usage * p.days;
+                desc.textContent = '검사지 ' + stripQty + '개 + 채혈침 ' + lancetQty + '개';
+                item.appendChild(desc);
+
+                grid.appendChild(item);
+
+                try {
+                    JsBarcode(svg, p.code, {
+                        format: 'CODE128',
+                        width: 2,
+                        height: 50,
+                        displayValue: true,
+                        fontSize: 14,
+                        margin: 5,
+                        font: 'Malgun Gothic'
+                    });
+                } catch (e) {
+                    svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" font-size="12">' + p.code + '</text>';
+                }
+            });
+        }
+
         function calculate() {
             const usageCount = parseInt(document.getElementById('usage-count').value) || 0;
             const days = parseInt(document.getElementById('prescription-days').value) || 0;
@@ -474,7 +615,6 @@
             const dailyLimit = parseInt(document.getElementById('daily-limit').value) || 0;
             const supportRate = parseInt(document.getElementById('support-rate').value) || 0;
             const stripBrand = document.getElementById('strip-brand').value;
-            const lancetBrand = document.getElementById('lancet-brand').value;
 
             const useStrip = document.getElementById('use-strip').checked;
             const useLancet = document.getElementById('use-lancet').checked;
@@ -523,7 +663,10 @@
             }
         }
 
-        window.addEventListener('load', calculate);
+        window.addEventListener('load', () => {
+            calculate();
+            generateBarcodes();
+        });
     </script>
 </body>
 </html>
