@@ -27,10 +27,7 @@
 
         .header h1 { font-size: 1.1rem; font-weight: 700; }
 
-        .tabs {
-            display: flex;
-            gap: 4px;
-        }
+        .tabs { display: flex; gap: 4px; }
 
         .tab {
             padding: 6px 16px;
@@ -54,7 +51,6 @@
 
         .tab-content.active { display: block; }
 
-        /* 계산 탭: 좌우 2컬럼 */
         #tab-calc.active {
             display: flex;
             gap: 12px;
@@ -141,7 +137,6 @@
             line-height: 1.4;
         }
 
-        /* 결과 카드 */
         .result-card {
             background: linear-gradient(135deg, #eff6ff, #f0f0ff);
             border: 2px solid #bfdbfe;
@@ -184,14 +179,6 @@
             font-weight: 600;
         }
 
-        .result-total {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 2px solid #93c5fd;
-        }
-
-        .result-total .result-row { border-bottom: none; padding: 2px 0; }
-
         .final-amount {
             display: flex;
             justify-content: space-between;
@@ -205,6 +192,31 @@
 
         .final-amount .final-label { font-size: 0.95rem; font-weight: 700; }
         .final-amount .final-value { font-size: 1.4rem; font-weight: 800; }
+
+        /* 계산탭 바코드 영역 */
+        .calc-barcode {
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+
+        .calc-barcode .calc-barcode-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .calc-barcode svg { max-width: 100%; }
+
+        .calc-barcode .no-barcode {
+            font-size: 0.75rem;
+            color: #aaa;
+            padding: 8px 0;
+        }
 
         /* 설정 탭 */
         #tab-settings { max-width: 500px; margin: 0 auto; }
@@ -265,7 +277,7 @@
         .barcode-item {
             background: white;
             border-radius: 10px;
-            padding: 14px;
+            padding: 16px;
             text-align: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             cursor: pointer;
@@ -279,15 +291,20 @@
         }
 
         .barcode-item .barcode-label {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: #1e40af;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #1e3a5f;
+            margin-bottom: 4px;
+        }
+
+        .barcode-item .barcode-copay {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #dc2626;
             margin-bottom: 8px;
         }
 
-        .barcode-item svg {
-            max-width: 100%;
-        }
+        .barcode-item svg { max-width: 100%; }
 
         .barcode-item .barcode-desc {
             font-size: 0.75rem;
@@ -312,24 +329,16 @@
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
-        /* 모바일: 세로 레이아웃 */
+        /* 모바일 */
         @media (max-width: 700px) {
-            body {
-                height: auto;
-                overflow: auto;
-            }
-            .tab-content {
-                height: auto;
-                overflow-y: visible;
-            }
+            body { height: auto; overflow: auto; }
+            .tab-content { height: auto; overflow-y: visible; }
             #tab-calc.active {
                 flex-direction: column;
                 height: auto;
                 overflow-y: visible;
             }
-            .barcode-grid {
-                grid-template-columns: 1fr;
-            }
+            .barcode-grid { grid-template-columns: 1fr; }
         }
 
         @media print {
@@ -444,6 +453,11 @@
                 <span class="final-label">본인부담금</span>
                 <span class="final-value" id="r-final-copay">0원</span>
             </div>
+
+            <div class="calc-barcode" id="calc-barcode-area">
+                <div class="calc-barcode-title">처방 바코드</div>
+                <svg id="calc-barcode-svg"></svg>
+            </div>
         </div>
     </div>
 
@@ -517,7 +531,6 @@
     <script>
         let billingType = 'pharmacy';
 
-        // 바코드 처방 데이터
         const prescriptions = [
             { label: '4회 14일', usage: 4, days: 14, code: 'GDM-4-14' },
             { label: '4회 30일', usage: 4, days: 30, code: '46864049768' },
@@ -526,6 +539,24 @@
             { label: '6회 30일', usage: 6, days: 30, code: 'GDM-6-30' },
             { label: '6회 60일', usage: 6, days: 60, code: '6502463174' },
         ];
+
+        function calcCopay(usage, days) {
+            const stripPrice = parseInt(document.getElementById('strip-price').value) || 0;
+            const lancetPrice = parseInt(document.getElementById('lancet-price').value) || 0;
+            const dailyLimit = parseInt(document.getElementById('daily-limit').value) || 0;
+            const supportRate = parseInt(document.getElementById('support-rate').value) || 0;
+
+            const dailyTotal = (stripPrice + lancetPrice) * usage;
+            const applicableAmount = Math.min(dailyTotal, dailyLimit);
+            const dailySupport = Math.floor(applicableAmount * supportRate / 100);
+            const totalCost = dailyTotal * days;
+            const totalSupport = dailySupport * days;
+            return totalCost - totalSupport;
+        }
+
+        function findBarcode(usage, days) {
+            return prescriptions.find(p => p.usage === usage && p.days === days);
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -572,19 +603,51 @@
             switchTab('calc');
         }
 
+        function updateCalcBarcode(usageCount, days) {
+            const match = findBarcode(usageCount, days);
+            const area = document.getElementById('calc-barcode-area');
+            const svg = document.getElementById('calc-barcode-svg');
+
+            if (match) {
+                area.style.display = 'block';
+                try {
+                    JsBarcode(svg, match.code, {
+                        format: 'CODE128',
+                        width: 2,
+                        height: 45,
+                        displayValue: true,
+                        fontSize: 13,
+                        margin: 5,
+                        font: 'Malgun Gothic'
+                    });
+                } catch (e) {
+                    area.style.display = 'none';
+                }
+            } else {
+                area.style.display = 'none';
+            }
+        }
+
         function generateBarcodes() {
             const grid = document.getElementById('barcode-grid');
             grid.innerHTML = '';
 
             prescriptions.forEach(p => {
+                const copay = calcCopay(p.usage, p.days);
+
                 const item = document.createElement('div');
                 item.className = 'barcode-item';
                 item.onclick = () => applyPrescription(p.usage, p.days);
 
                 const label = document.createElement('div');
                 label.className = 'barcode-label';
-                label.textContent = '하루 ' + p.label;
+                label.textContent = '1일 ' + p.usage + '회 × ' + p.days + '일';
                 item.appendChild(label);
+
+                const copayEl = document.createElement('div');
+                copayEl.className = 'barcode-copay';
+                copayEl.textContent = '본인부담금 ' + formatNumber(copay) + '원';
+                item.appendChild(copayEl);
 
                 const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 svg.id = 'barcode-' + p.usage + '-' + p.days;
@@ -592,9 +655,8 @@
 
                 const desc = document.createElement('div');
                 desc.className = 'barcode-desc';
-                const stripQty = p.usage * p.days;
-                const lancetQty = p.usage * p.days;
-                desc.textContent = '검사지 ' + stripQty + '개 + 채혈침 ' + lancetQty + '개';
+                const qty = p.usage * p.days;
+                desc.textContent = '검사지 ' + qty + '개 + 채혈침 ' + qty + '개';
                 item.appendChild(desc);
 
                 grid.appendChild(item);
@@ -669,6 +731,8 @@
                 document.getElementById('r-final-copay').textContent = formatNumber(finalCopay) + '원';
                 document.querySelector('.final-amount').style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
             }
+
+            updateCalcBarcode(usageCount, days);
         }
 
         window.addEventListener('load', () => {
