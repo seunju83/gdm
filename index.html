@@ -328,6 +328,34 @@
             margin-top: 6px;
         }
 
+        .register-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 20px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+            background: #f1f5f9;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .register-btn.registered {
+            border-color: #16a34a;
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .barcode-item.unregistered {
+            opacity: 0.5;
+        }
+
+        .barcode-item.unregistered:hover {
+            opacity: 0.8;
+        }
+
         .print-btn {
             width: 100%;
             padding: 12px;
@@ -557,6 +585,32 @@
             { label: '6회 60일', usage: 6, days: 60, code: '6502463174' },
         ];
 
+        // 등록 상태 관리 (localStorage)
+        function getRegistered() {
+            try {
+                return JSON.parse(localStorage.getItem('registeredBarcodes')) || {};
+            } catch (e) { return {}; }
+        }
+
+        function setRegistered(key, value) {
+            const reg = getRegistered();
+            reg[key] = value;
+            localStorage.setItem('registeredBarcodes', JSON.stringify(reg));
+        }
+
+        function isRegistered(usage, days) {
+            const reg = getRegistered();
+            return reg[usage + '-' + days] === true;
+        }
+
+        function toggleRegister(usage, days) {
+            const key = usage + '-' + days;
+            const current = isRegistered(usage, days);
+            setRegistered(key, !current);
+            generateBarcodes();
+            calculate();
+        }
+
         function calcCopay(usage, days) {
             const stripPrice = parseInt(document.getElementById('strip-price').value) || 0;
             const lancetPrice = parseInt(document.getElementById('lancet-price').value) || 0;
@@ -571,8 +625,10 @@
             return totalCost - totalSupport;
         }
 
-        function findBarcode(usage, days) {
-            return prescriptions.find(p => p.usage === usage && p.days === days);
+        function findRegisteredBarcode(usage, days) {
+            const p = prescriptions.find(p => p.usage === usage && p.days === days);
+            if (p && isRegistered(usage, days)) return p;
+            return null;
         }
 
         function switchTab(tab) {
@@ -621,7 +677,7 @@
         }
 
         function updateCalcBarcode(usageCount, days) {
-            const match = findBarcode(usageCount, days);
+            const match = findRegisteredBarcode(usageCount, days);
             const area = document.getElementById('calc-barcode-area');
             const svg = document.getElementById('calc-barcode-svg');
 
@@ -651,30 +707,45 @@
 
             prescriptions.forEach(p => {
                 const copay = calcCopay(p.usage, p.days);
+                const registered = isRegistered(p.usage, p.days);
 
                 const item = document.createElement('div');
-                item.className = 'barcode-item';
-                item.onclick = () => applyPrescription(p.usage, p.days);
+                item.className = 'barcode-item' + (registered ? '' : ' unregistered');
+
+                const topArea = document.createElement('div');
+                topArea.style.cursor = 'pointer';
+                topArea.onclick = () => applyPrescription(p.usage, p.days);
 
                 const label = document.createElement('div');
                 label.className = 'barcode-label';
                 label.textContent = '1일 ' + p.usage + '회 × ' + p.days + '일';
-                item.appendChild(label);
+                topArea.appendChild(label);
 
                 const copayEl = document.createElement('div');
                 copayEl.className = 'barcode-copay';
                 copayEl.textContent = '본인부담금 ' + formatNumber(copay) + '원';
-                item.appendChild(copayEl);
+                topArea.appendChild(copayEl);
 
                 const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                 svg.id = 'barcode-' + p.usage + '-' + p.days;
-                item.appendChild(svg);
+                topArea.appendChild(svg);
 
                 const desc = document.createElement('div');
                 desc.className = 'barcode-desc';
                 const qty = p.usage * p.days;
                 desc.textContent = '검사지 ' + qty + '개 + 채혈침 ' + qty + '개';
-                item.appendChild(desc);
+                topArea.appendChild(desc);
+
+                item.appendChild(topArea);
+
+                const regBtn = document.createElement('button');
+                regBtn.className = 'register-btn' + (registered ? ' registered' : '');
+                regBtn.textContent = registered ? '등록됨' : '등록';
+                regBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleRegister(p.usage, p.days);
+                };
+                item.appendChild(regBtn);
 
                 grid.appendChild(item);
 
