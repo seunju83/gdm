@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>임신성 당뇨 소모성재료 본인부담금 계산기</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background: #f0f4f8;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 { font-size: 1.1rem; font-weight: 700; }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tab {
+            padding: 6px 16px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: white; background: rgba(255,255,255,0.15); }
+        .tab.active { color: white; background: rgba(255,255,255,0.25); }
+
+        .tab-content {
+            display: none;
+            padding: 12px 16px;
+            height: calc(100vh - 46px);
+            overflow-y: auto;
+        }
+
+        .tab-content.active { display: block; }
+
+        /* 계산 탭: 좌우 2컬럼 */
+        #tab-calc.active {
+            display: flex;
+            gap: 12px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .col-left, .col-right { flex: 1; min-width: 0; }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            font-size: 0.85rem;
+            color: #1e40af;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .form-group { margin-bottom: 10px; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .form-row { display: flex; gap: 10px; }
+        .form-row .form-group { flex: 1; }
+
+        .unit { font-size: 0.75rem; color: #888; margin-top: 2px; }
+
+        .billing-type-selector { display: flex; gap: 6px; margin-bottom: 10px; }
+
+        .billing-type-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            color: #666;
+        }
+
+        .billing-type-btn.active {
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .info-box {
+            background: #fef9c3;
+            border: 1px solid #fde047;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.75rem;
+            color: #854d0e;
+            line-height: 1.4;
+        }
+
+        /* 결과 카드 */
+        .result-card {
+            background: linear-gradient(135deg, #eff6ff, #f0f0ff);
+            border: 2px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .result-card h3 {
+            color: #1e40af;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #bfdbfe;
+            padding-bottom: 6px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.82rem;
+            border-bottom: 1px solid #dbeafe;
+        }
+
+        .result-row:last-child { border-bottom: none; }
+        .result-row .label { color: #555; }
+        .result-row .value { font-weight: 700; color: #333; }
+        .result-row .value.support { color: #16a34a; }
+
+        .daily-detail {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+        }
+
+        .daily-detail .detail-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .result-total {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #93c5fd;
+        }
+
+        .result-total .result-row { border-bottom: none; padding: 2px 0; }
+
+        .final-amount {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 10px;
+        }
+
+        .final-amount .final-label { font-size: 0.95rem; font-weight: 700; }
+        .final-amount .final-value { font-size: 1.4rem; font-weight: 800; }
+
+        /* 설정 탭 */
+        #tab-settings { max-width: 500px; margin: 0 auto; }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .setting-item:last-child { border-bottom: none; }
+        .setting-label { font-size: 0.85rem; color: #555; }
+
+        .setting-value {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .setting-value input {
+            width: 80px;
+            padding: 5px 6px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-align: right;
+        }
+
+        .setting-value input:focus { outline: none; border-color: #2563eb; }
+        .setting-unit { font-size: 0.75rem; color: #888; }
+
+        .reset-btn {
+            width: 100%;
+            padding: 8px;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .reset-btn:hover { background: #e2e8f0; }
+
+        /* 모바일: 세로 레이아웃 */
+        @media (max-width: 700px) {
+            #tab-calc.active {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>임신성 당뇨 소모성재료 본인부담금 계산기</h1>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('calc')">계산</div>
+            <div class="tab" onclick="switchTab('settings')">설정</div>
+        </div>
+    </div>
+
+    <!-- 계산 탭 -->
+    <div id="tab-calc" class="tab-content active">
+        <div class="col-left">
+            <div class="card">
+                <h3>청구 방식</h3>
+                <div class="billing-type-selector">
+                    <div class="billing-type-btn active" onclick="setBillingType('pharmacy')" id="btn-pharmacy">약국 대행 청구</div>
+                    <div class="billing-type-btn" onclick="setBillingType('self')" id="btn-self">본인 직접 청구</div>
+                </div>
+                <div class="info-box" id="info-pharmacy">
+                    약국 대행 청구: 공단 지원금을 사전 차감하여 본인부담금만 수납
+                </div>
+                <div class="info-box" id="info-self" style="display:none;">
+                    본인 직접 청구: 전액 결제 후 공단에 직접 환급 청구
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>처방 정보 입력</h3>
+                <div style="display:flex; gap:12px; margin-bottom:10px;">
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" id="use-strip" checked onchange="calculate()" style="width:16px;height:16px;cursor:pointer;"> 검사지
+                    </label>
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" id="use-lancet" checked onchange="calculate()" style="width:16px;height:16px;cursor:pointer;"> 채혈침
+                    </label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>하루 사용 횟수</label>
+                        <input type="number" id="usage-count" value="4" min="1" max="20" oninput="calculate()">
+                        <div class="unit">회</div>
+                    </div>
+                    <div class="form-group">
+                        <label>처방 일수</label>
+                        <input type="number" id="prescription-days" value="30" min="1" max="365" oninput="calculate()">
+                        <div class="unit">일</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-right">
+            <div class="result-card">
+                <h3>계산 결과</h3>
+
+                <div class="daily-detail">
+                    <div class="detail-title">1일 기준 (<span id="r-strip-name">케어센스</span> <span id="r-daily-count">4</span>개)</div>
+                    <div class="result-row" id="row-strip">
+                        <span class="label">검사지 × <span id="r-strip-qty">4</span>개</span>
+                        <span class="value" id="r-daily-strip">0원</span>
+                    </div>
+                    <div class="result-row" id="row-lancet">
+                        <span class="label">채혈침 × <span id="r-lancet-qty">4</span>개</span>
+                        <span class="value" id="r-daily-lancet">0원</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="label">1일 합계</span>
+                        <span class="value" id="r-daily-total">0원</span>
+                    </div>
+                    <div class="result-row" id="row-daily-support">
+                        <span class="label">1일 공단 지원금</span>
+                        <span class="value support" id="r-daily-support">0원</span>
+                    </div>
+                </div>
+
+                <div class="result-row">
+                    <span class="label">처방 일수</span>
+                    <span class="value" id="r-days">0일</span>
+                </div>
+                <div class="result-row" id="row-total-strip">
+                    <span class="label">검사지 총수량</span>
+                    <span class="value" id="r-total-strip-qty">120개</span>
+                </div>
+                <div class="result-row" id="row-total-lancet">
+                    <span class="label">채혈침 총수량</span>
+                    <span class="value" id="r-total-lancet-qty">120개</span>
+                </div>
+                <div class="result-row">
+                    <span class="label">총 재료비</span>
+                    <span class="value" id="r-total-cost">0원</span>
+                </div>
+                <div class="result-row" id="row-total-support">
+                    <span class="label">총 공단 지원금</span>
+                    <span class="value support" id="r-total-support">0원</span>
+                </div>
+            </div>
+
+            <div class="final-amount">
+                <span class="final-label">본인부담금</span>
+                <span class="final-value" id="r-final-copay">0원</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 설정 탭 -->
+    <div id="tab-settings" class="tab-content">
+        <div class="card">
+            <h3>당뇨 소모성재료 설정</h3>
+            <div class="setting-item">
+                <span class="setting-label">검사지 브랜드</span>
+                <div class="setting-value">
+                    <input type="text" id="strip-brand" value="케어센스" style="width:120px; text-align:left;">
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">검사지 단가</span>
+                <div class="setting-value">
+                    <input type="number" id="strip-price" value="400" min="0">
+                    <span class="setting-unit">원/개</span>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">채혈침 브랜드</span>
+                <div class="setting-value">
+                    <input type="text" id="lancet-brand" value="케어센스" style="width:120px; text-align:left;">
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">채혈침 단가</span>
+                <div class="setting-value">
+                    <input type="number" id="lancet-price" value="25" min="0">
+                    <span class="setting-unit">원/개</span>
+                </div>
+            </div>
+            <button class="reset-btn" onclick="resetSettings()">기본값으로 초기화</button>
+        </div>
+
+        <div class="card">
+            <h3>공단 지원금 기준</h3>
+            <div class="info-box" style="margin-bottom:10px;">
+                대상: 임신 중 당뇨 환자 (인슐린 미사용)<br>
+                하루 지원금 한도: 1,300원 (한도 내 90% 지원)<br>
+                하루 최대 지원금: 1,170원
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">하루 지원 한도</span>
+                <div class="setting-value">
+                    <input type="number" id="daily-limit" value="1300" min="0">
+                    <span class="setting-unit">원</span>
+                </div>
+            </div>
+            <div class="setting-item">
+                <span class="setting-label">지원 비율</span>
+                <div class="setting-value">
+                    <input type="number" id="support-rate" value="90" min="0" max="100">
+                    <span class="setting-unit">%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let billingType = 'pharmacy';
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+            if (tab === 'calc') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('tab-calc').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('tab-settings').classList.add('active');
+            }
+        }
+
+        function setBillingType(type) {
+            billingType = type;
+            document.getElementById('btn-pharmacy').classList.toggle('active', type === 'pharmacy');
+            document.getElementById('btn-self').classList.toggle('active', type === 'self');
+            document.getElementById('info-pharmacy').style.display = type === 'pharmacy' ? 'block' : 'none';
+            document.getElementById('info-self').style.display = type === 'self' ? 'block' : 'none';
+
+            const showSupport = type === 'pharmacy';
+            document.getElementById('row-daily-support').style.display = showSupport ? 'flex' : 'none';
+            document.getElementById('row-total-support').style.display = showSupport ? 'flex' : 'none';
+
+            calculate();
+        }
+
+        function resetSettings() {
+            document.getElementById('strip-brand').value = '케어센스';
+            document.getElementById('strip-price').value = 400;
+            document.getElementById('lancet-brand').value = '케어센스';
+            document.getElementById('lancet-price').value = 25;
+            document.getElementById('daily-limit').value = 1300;
+            document.getElementById('support-rate').value = 90;
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString('ko-KR');
+        }
+
+        function calculate() {
+            const usageCount = parseInt(document.getElementById('usage-count').value) || 0;
+            const days = parseInt(document.getElementById('prescription-days').value) || 0;
+            const stripPrice = parseInt(document.getElementById('strip-price').value) || 0;
+            const lancetPrice = parseInt(document.getElementById('lancet-price').value) || 0;
+            const dailyLimit = parseInt(document.getElementById('daily-limit').value) || 0;
+            const supportRate = parseInt(document.getElementById('support-rate').value) || 0;
+            const stripBrand = document.getElementById('strip-brand').value;
+            const lancetBrand = document.getElementById('lancet-brand').value;
+
+            const useStrip = document.getElementById('use-strip').checked;
+            const useLancet = document.getElementById('use-lancet').checked;
+
+            const dailyStrip = useStrip ? stripPrice * usageCount : 0;
+            const dailyLancet = useLancet ? lancetPrice * usageCount : 0;
+            const dailyTotal = dailyStrip + dailyLancet;
+
+            let dailySupport = 0;
+            if (billingType === 'pharmacy') {
+                const applicableAmount = Math.min(dailyTotal, dailyLimit);
+                dailySupport = Math.floor(applicableAmount * supportRate / 100);
+            }
+
+            const totalCost = dailyTotal * days;
+            const totalSupport = dailySupport * days;
+            const finalCopay = totalCost - totalSupport;
+
+            const totalStripQty = useStrip ? usageCount * days : 0;
+            const totalLancetQty = useLancet ? usageCount * days : 0;
+
+            document.getElementById('r-strip-name').textContent = stripBrand;
+            document.getElementById('r-daily-count').textContent = usageCount;
+            document.getElementById('r-strip-qty').textContent = useStrip ? usageCount : 0;
+            document.getElementById('r-lancet-qty').textContent = useLancet ? usageCount : 0;
+            document.getElementById('r-daily-strip').textContent = formatNumber(dailyStrip) + '원';
+            document.getElementById('r-daily-lancet').textContent = formatNumber(dailyLancet) + '원';
+            document.getElementById('r-daily-total').textContent = formatNumber(dailyTotal) + '원';
+            document.getElementById('r-daily-support').textContent = '-' + formatNumber(dailySupport) + '원';
+            document.getElementById('r-days').textContent = days + '일';
+            document.getElementById('r-total-strip-qty').textContent = totalStripQty + '개';
+            document.getElementById('r-total-lancet-qty').textContent = totalLancetQty + '개';
+            document.getElementById('row-strip').style.display = useStrip ? 'flex' : 'none';
+            document.getElementById('row-lancet').style.display = useLancet ? 'flex' : 'none';
+            document.getElementById('row-total-strip').style.display = useStrip ? 'flex' : 'none';
+            document.getElementById('row-total-lancet').style.display = useLancet ? 'flex' : 'none';
+            document.getElementById('r-total-cost').textContent = formatNumber(totalCost) + '원';
+            document.getElementById('r-total-support').textContent = '-' + formatNumber(totalSupport) + '원';
+
+            if (billingType === 'self') {
+                document.getElementById('r-final-copay').textContent = formatNumber(totalCost) + '원 (전액)';
+                document.querySelector('.final-amount').style.background = 'linear-gradient(135deg, #6366f1, #4f46e5)';
+            } else {
+                document.getElementById('r-final-copay').textContent = formatNumber(finalCopay) + '원';
+                document.querySelector('.final-amount').style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
+            }
+        }
+
+        window.addEventListener('load', calculate);
+    </script>
+</body>
+</html>
