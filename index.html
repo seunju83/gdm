@@ -389,7 +389,9 @@
             body { background: white; height: auto; overflow: visible; }
             .header, .tabs { display: none !important; }
             .tab-content { display: none !important; }
-            #tab-barcode { display: block !important; height: auto; overflow: visible; padding: 10px; }
+            body.print-calc #tab-calc { display: block !important; height: auto; overflow: visible; padding: 10px; }
+            body.print-calc #tab-calc .card { box-shadow: none; border: 1px solid #ccc; }
+            body.print-barcode #tab-barcode { display: block !important; height: auto; overflow: visible; padding: 10px; }
             .barcode-item { break-inside: avoid; border: 1px solid #ccc; box-shadow: none; }
             .print-btn { display: none; }
         }
@@ -509,6 +511,7 @@
                 하루 지원금 한도: 1,300원 (한도 내 90% 지원)<br>
                 하루 최대 지원금: 1,170원
             </div>
+            <button class="print-btn" onclick="printCalc()">출력</button>
         </div>
     </div>
 
@@ -519,7 +522,7 @@
             <div class="info-box">바코드를 클릭하면 해당 처방으로 계산 탭이 자동 입력됩니다.</div>
         </div>
         <div class="barcode-grid" id="barcode-grid"></div>
-        <button class="print-btn" onclick="window.print()">바코드 인쇄</button>
+        <button class="print-btn" onclick="printBarcode()">바코드 인쇄</button>
     </div>
 
     <!-- 설정 탭 -->
@@ -705,6 +708,20 @@
             } else {
                 area.style.display = 'none';
             }
+        }
+
+        function printCalc() {
+            document.body.classList.remove('print-barcode');
+            document.body.classList.add('print-calc');
+            window.print();
+            document.body.classList.remove('print-calc');
+        }
+
+        function printBarcode() {
+            document.body.classList.remove('print-calc');
+            document.body.classList.add('print-barcode');
+            window.print();
+            document.body.classList.remove('print-barcode');
         }
 
         function generateBarcodes() {
